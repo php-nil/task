@@ -1,0 +1,16 @@
+{
+    "name": "php-nil/task",
+    "description": "Nil Task - NIL framework component",
+    "keywords": ["nil", "task", "framework", "symfony"],
+    "license": "MIT",
+    "require": {
+        "php": ">=8.2",
+        "symfony/console": "^8.0",
+        "doctrine/dbal": "^4.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "NilTask\\": "src/"
+        }
+    }
+}
