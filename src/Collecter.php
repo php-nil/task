@@ -99,7 +99,7 @@ class Collecter
      * @param bool $prepend 是否添加到最前面
      * @return $this
      */
-    public function addCollector(Collecter $collecter, bool $prepend = false): Collecter
+    public function addCollecter(Collecter $collecter, bool $prepend = false): Collecter
     {
         if (false === $prepend) {
             $this->collecter[] = $collecter;
@@ -108,18 +108,5 @@ class Collecter
         }
 
         return $this;
-    }
-
-    /**
-     * 添加子收集器（兼容旧方法名）
-     *
-     * @deprecated 请使用 addCollector() 方法
-     * @param Collecter $collecter 子收集器实例
-     * @param bool $prepend 是否添加到最前面
-     * @return $this
-     */
-    public function addCollectr(Collecter $collecter, bool $prepend = false): Collecter
-    {
-        return $this->addCollector($collecter, $prepend);
     }
 }
