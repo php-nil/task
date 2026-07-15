@@ -20,36 +20,16 @@ final class Task
     /** @var Connection 数据库连接实例 */
     protected Connection $database;
 
-    /** @var Collecter 任务收集器实例 */
-    protected Collecter $collecter;
-
     /** @var string 事务保存点名称 */
     public const string POINT_NAME = 'try_query';
 
-    /** @var self[] 单例实例缓存 */
-    protected static array $instances = [];
-
-    /**
-     * 获取 Task 单例实例
-     *
-     * @param string $table 任务表名
-     * @param string $database 数据库连接名
-     * @return self Task 实例
-     */
-    public static function get(string $table, string $database): self
-    {
-        $key = "{$database}-{$table}";
-
-        return static::$instances[$key] ??= new self($table, $database);
-    }
-
     /**
      * 构造函数
-     *
+     * @param Collecter $collecter 事件收集器
      * @param string $table 任务表名
      * @param string $database 数据库连接名
      */
-    public function __construct(public readonly string $table, string $database)
+    protected function __construct(public readonly Collecter $collecter, public readonly string $table, string $database)
     {
         $this->database = Kernel::dbal($database);
     }

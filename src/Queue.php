@@ -64,7 +64,7 @@ final class Queue
         $t1 = microtime(true);
 
         try {
-            $action = $task->getCollecter()->get($queue->getName());
+            $action = $task->collecter->get($queue->getName());
 
             if (null === $action) {
                 $return = Result::err(

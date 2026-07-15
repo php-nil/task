@@ -62,14 +62,15 @@ final class TaskManager implements EventCollectorInterface
      */
     public static function kernelEvent(EventDispatcher $dispatcher)
     {
-        $task = Task::get(self::$dbtable ?? self::DEFAULT_TABLE_NAME, self::$dbname ?? DEFAULT_NAME);
+        $task = new Task(
+            self::$collecter,
+            self::$dbtable ?? self::DEFAULT_TABLE_NAME,
+            self::$dbname ?? DEFAULT_NAME
+        );
 
         $dispatcher->addListener(
             'kernel.console',
-            fn($event) => $event->add(new Command(
-                self::$collecter,
-                $task
-            ))
+            fn($event) => $event->add(new TaskCommand($task))
         );
     }
 }
