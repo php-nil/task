@@ -20,14 +20,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class Command extends BaseCommand
 {
-    /** @var string 任务表名 */
-    protected string $dbtable;
+    public function __construct(
+        protected Collecter $collecter,
+        /** @var Task 任务管理器实例 */
+        protected Task $task
+    ) {
+        parent::__construct();
+    }
 
-    /** @var string 数据库连接名 */
-    protected string $dbname;
-
-    /** @var Task 任务管理器实例 */
-    protected Task $task;
 
     /**
      * 配置命令参数和选项
@@ -35,9 +35,6 @@ class Command extends BaseCommand
     protected function configure(): void
     {
         $this->setDescription('定时执行任务');
-
-        $this->addArgument('dbtable', InputArgument::REQUIRED, '运行哪张表?')
-            ->addArgument('dbname', InputArgument::OPTIONAL, '指定数据库?');
 
         $this->addOption(
             'duration',
@@ -86,12 +83,6 @@ class Command extends BaseCommand
             '--------------------',
             '',
         ]);
-
-        $dbtable = $input->getArgument('dbtable');
-        $dbname = $input->getArgument('dbname');
-
-        $this->task = Task::get($dbtable, $dbname);
-        $this->task->collectAppAction();
 
         $duration = (int) $input->getOption('duration');
         $interval = max(10, (int) $input->getOption('interval'));

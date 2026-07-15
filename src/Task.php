@@ -33,12 +33,11 @@ final class Task
      * 获取 Task 单例实例
      *
      * @param string $table 任务表名
-     * @param string|null $database 数据库连接名
+     * @param string $database 数据库连接名
      * @return self Task 实例
      */
-    public static function get(string $table = 'task', ?string $database = null): self
+    public static function get(string $table, string $database): self
     {
-        $database ??= DEFAULT_NAME;
         $key = "{$database}-{$table}";
 
         return static::$instances[$key] ??= new self($table, $database);
@@ -53,7 +52,6 @@ final class Task
     public function __construct(public readonly string $table, string $database)
     {
         $this->database = Kernel::dbal($database);
-        $this->collecter = new Collecter;
     }
 
     /**
@@ -74,28 +72,6 @@ final class Task
     public function getDatabaseTable(): string
     {
         return $this->table;
-    }
-
-    /**
-     * 获取任务收集器实例
-     *
-     * @return Collecter 收集器实例
-     */
-    public function getCollecter(): Collecter
-    {
-        return $this->collecter;
-    }
-
-    /**
-     * 收集所有应用注册的任务
-     */
-    public function collectAppAction(): void
-    {
-        Nil::app()->iterator(function ($app) {
-            if ($app instanceof TaskCollectInterface) {
-                $app->taskCollect($this->collecter);
-            }
-        });
     }
 
     /**
@@ -322,27 +298,5 @@ final class Task
     public function run(int $offset = 0): false|Queue
     {
         return Queue::run($this, $offset);
-    }
-
-    /**
-     * 注册到内核启动事件
-     *
-     * @return string 应用名称
-     */
-    public static function kernelBoot(): string
-    {
-        $app = new class implements EventAppInterface {
-            public function kernelEvent(EventDispatcher $dispatcher): void
-            {
-                $dispatcher->addListener('kernel.console', function ($event) {
-                    $event->add(new Command);
-                });
-            }
-        };
-
-        $app_name = uniqid('task');
-        Nil::app()->set($app_name, $app);
-
-        return $app_name;
     }
 }

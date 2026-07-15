@@ -14,5 +14,5 @@ interface TaskCollectInterface
      *
      * @param Collecter $collecter 任务收集器实例
      */
-    public function taskCollect(Collecter $collecter): void;
+    public static function collect(Collecter $collecter):void;
 }
