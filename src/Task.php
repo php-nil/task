@@ -29,7 +29,7 @@ final class Task
      * @param string $table 任务表名
      * @param string $database 数据库连接名
      */
-    protected function __construct(public readonly Collecter $collecter, public readonly string $table, string $database)
+    public function __construct(public readonly Collecter $collecter, public readonly string $table, string $database)
     {
         $this->database = Kernel::dbal($database);
     }
