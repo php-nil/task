@@ -4,11 +4,7 @@ namespace NilTask;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\TableNotFoundException;
-use Nil\Kernel\EventAppInterface;
 use Nil\Kernel\Kernel;
-use Nil\Nil;
-use Symfony\Component\EventDispatcher\EventDispatcher;
-use const Nil\Kernel\DEFAULT_NAME;
 
 /**
  * 任务管理器

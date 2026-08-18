@@ -7,8 +7,8 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use const Nil\Kernel\DEFAULT_NAME;
 
 /**
- * 管理
- *
+ * 任务管理器
+ * 全局单例模式
  */
 final class TaskManager implements EventCollectorInterface
 {
@@ -18,6 +18,13 @@ final class TaskManager implements EventCollectorInterface
      * @var Collecter
      */
     protected static Collecter $collecter;
+
+    /**
+     * 任务实例
+     *
+     * @var Task
+     */
+    protected static Task $task;
 
     protected static ?string $dbtable = null;
     protected static ?string $dbname = null;
@@ -56,17 +63,27 @@ final class TaskManager implements EventCollectorInterface
     }
 
     /**
+     * 获取任务实例
+     *
+     * @return Task
+     */
+    public static function getTask(): Task
+    {
+        return self::$task ??= new Task(
+            self::$collecter,
+            self::$dbtable ?? self::DEFAULT_TABLE_NAME,
+            self::$dbname ?? DEFAULT_NAME
+        );
+    }
+
+    /**
      * 注册到内核启动事件
      *
      * @return void
      */
     public static function kernelEvent(EventDispatcher $dispatcher)
     {
-        $task = new Task(
-            self::$collecter,
-            self::$dbtable ?? self::DEFAULT_TABLE_NAME,
-            self::$dbname ?? DEFAULT_NAME
-        );
+        $task = self::getTask();
 
         $dispatcher->addListener(
             'kernel.console',
