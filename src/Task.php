@@ -105,6 +105,10 @@ final class Task
         $sql = $this->database->getDatabasePlatform()
             ->modifyLimitQuery($sql, 1);
 
+        if (!$this->database->isTransactionActive()) {
+            $this->database->beginTransaction();
+        }
+
         $this->database->createSavepoint(self::POINT_NAME);
 
         try {
@@ -113,9 +117,9 @@ final class Task
         } catch (TableNotFoundException $th) {
             $this->database->rollbackSavepoint(self::POINT_NAME);
             TableInit::init($this);
-
             return false;
         } catch (\Throwable $th) {
+            $this->database->rollbackSavepoint(self::POINT_NAME);
             throw $th;
         }
 

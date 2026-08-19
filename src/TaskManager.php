@@ -31,6 +31,13 @@ final class TaskManager implements EventCollectorInterface
 
     public const string DEFAULT_TABLE_NAME = 'task';
 
+    /**
+     * 收集事件
+     *
+     * @param string|\Closure ...$events 事件名称或闭包
+     * @return void
+     * @throws \Exception 当事件类不存在或未实现 TaskCollectInterface 接口时抛出
+     */
     public static function collect(string|\Closure ...$events): void
     {
         self::$collecter = new Collecter();
