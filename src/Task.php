@@ -105,23 +105,20 @@ final class Task
         $sql = $this->database->getDatabasePlatform()
             ->modifyLimitQuery($sql, 1);
 
-        if (!$this->database->isTransactionActive()) {
-            Kernel::log('task')->info('fetchHandel beginTransaction', [$sql]);
-            $this->database->beginTransaction();
-        }
+        $isT = !$this->database->isTransactionActive();
 
-        $this->database->createSavepoint(self::POINT_NAME);
+        $isT && $this->database->createSavepoint(self::POINT_NAME);
 
         try {
             $ret = $this->database->$func($sql, $params);
-            $this->database->releaseSavepoint(self::POINT_NAME);
+            $isT && $this->database->releaseSavepoint(self::POINT_NAME);
         } catch (TableNotFoundException $th) {
             Kernel::log('task')->info('fetchHandel TableNotFound', [$th->getMessage()]);
-            $this->database->rollbackSavepoint(self::POINT_NAME);
+            $isT && $this->database->rollbackSavepoint(self::POINT_NAME);
             TableInit::init($this);
             return false;
         } catch (\Throwable $th) {
-            $this->database->rollbackSavepoint(self::POINT_NAME);
+            $isT && $this->database->rollbackSavepoint(self::POINT_NAME);
             throw $th;
         }
 
