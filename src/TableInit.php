@@ -4,6 +4,7 @@ namespace NilTask;
 
 use Doctrine\DBAL\Schema\PrimaryKeyConstraint;
 use Doctrine\DBAL\Schema\Schema;
+use Nil\Kernel\Kernel;
 
 /**
  * 任务表初始化器
@@ -19,6 +20,8 @@ final class TableInit
      */
     public static function init(Task $task): void
     {
+        Kernel::log('task')->info('init Table', [$task->table]);
+
         $schema = new Schema();
         $myTable = $schema->createTable($task->table);
 

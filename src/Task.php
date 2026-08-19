@@ -106,6 +106,7 @@ final class Task
             ->modifyLimitQuery($sql, 1);
 
         if (!$this->database->isTransactionActive()) {
+            Kernel::log('task')->info('fetchHandel beginTransaction', [$sql]);
             $this->database->beginTransaction();
         }
 
@@ -115,6 +116,7 @@ final class Task
             $ret = $this->database->$func($sql, $params);
             $this->database->releaseSavepoint(self::POINT_NAME);
         } catch (TableNotFoundException $th) {
+            Kernel::log('task')->info('fetchHandel TableNotFound', [$th->getMessage()]);
             $this->database->rollbackSavepoint(self::POINT_NAME);
             TableInit::init($this);
             return false;
