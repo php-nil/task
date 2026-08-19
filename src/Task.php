@@ -105,7 +105,7 @@ final class Task
         $sql = $this->database->getDatabasePlatform()
             ->modifyLimitQuery($sql, 1);
 
-        $isT = !$this->database->isTransactionActive();
+        $isT = $this->database->isTransactionActive();
 
         $isT && $this->database->createSavepoint(self::POINT_NAME);
 
