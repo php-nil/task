@@ -40,21 +40,31 @@ final class TaskManager implements EventCollectorInterface
      */
     public static function collect(string|\Closure ...$events): void
     {
-        self::$collecter = new Collecter();
+        $collecter = self::getCollecter();
 
         foreach ($events as $event) {
             if ($event instanceof \Closure) {
-                $event(self::$collecter);
+                $event($collecter);
                 continue;
             }
 
             // 事件类
             if (class_exists($event) && is_subclass_of($event, TaskCollectInterface::class)) {
-                $event::collect(self::$collecter);
+                $event::collect($collecter);
             } else {
                 throw new \Exception("event{$event} class not found or not implements TaskCollectInterface!");
             }
         }
+    }
+
+    /**
+     * 获取事件收集器
+     *
+     * @return Collecter
+     */
+    public static function getCollecter(): Collecter
+    {
+        return self::$collecter ??= new Collecter();
     }
 
     /**
@@ -70,17 +80,33 @@ final class TaskManager implements EventCollectorInterface
     }
 
     /**
+     * 获取任务表名
+     *
+     * @return string
+     */
+    public static function getTable(): string
+    {
+        return self::$dbtable ?? self::DEFAULT_TABLE_NAME;
+    }
+
+    /**
+     * 获取数据库连接名
+     *
+     * @return string
+     */
+    public static function getDbName(): string
+    {
+        return self::$dbname ?? DEFAULT_NAME;
+    }
+
+    /**
      * 获取任务实例
      *
      * @return Task
      */
     public static function getTask(): Task
     {
-        return self::$task ??= new Task(
-            self::$collecter,
-            self::$dbtable ?? self::DEFAULT_TABLE_NAME,
-            self::$dbname ?? DEFAULT_NAME
-        );
+        return self::$task ??= new Task(self::getCollecter(), self::getTable(), self::getDbName());
     }
 
     /**
