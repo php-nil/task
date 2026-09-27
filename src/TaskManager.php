@@ -110,11 +110,11 @@ final class TaskManager implements EventCollectorInterface
     }
 
     /**
-     * 注册到内核启动事件
+     * 注册到内核启动事件中
      *
      * @return void
      */
-    public static function kernelEvent(EventDispatcher $dispatcher)
+    public static function kernelEvent(EventDispatcher $dispatcher): void
     {
         $task = self::getTask();
 
