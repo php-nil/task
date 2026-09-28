@@ -26,10 +26,26 @@ final class TaskManager implements EventCollectorInterface
      */
     protected static Task $task;
 
+    /**
+     * 计划任务实例
+     *
+     * @var Plan\PlanTask
+     */
+    protected static Plan\PlanTask $planTask;
+
     protected static ?string $dbtable = null;
     protected static ?string $dbname = null;
 
+    /**
+     * 默认任务表名
+     */
     public const string DEFAULT_TABLE_NAME = 'task';
+
+    /**
+     * 自动计划任务表名
+     * 实际表名在 任务表名后面添加 PLAN_TABLE_NAME 后缀
+     */
+    public const string PLAN_TABLE_NAME = '_plan';
 
     /**
      * 收集事件
@@ -90,6 +106,16 @@ final class TaskManager implements EventCollectorInterface
     }
 
     /**
+     * 获取计划任务表名
+     *
+     * @return string
+     */
+    public static function getPlanTable(): string
+    {
+        return self::getTable() . self::PLAN_TABLE_NAME;
+    }
+
+    /**
      * 获取数据库连接名
      *
      * @return string
@@ -102,11 +128,41 @@ final class TaskManager implements EventCollectorInterface
     /**
      * 获取任务实例
      *
+     * 首次实例化时自动把 FqcnCollecter 作为默认兜底收集器注入收集器链
+     * （短任务名均未命中时，按任务类完整类名解析执行）。
+     *
      * @return Task
      */
     public static function getTask(): Task
     {
-        return self::$task ??= new Task(self::getCollecter(), self::getTable(), self::getDbName());
+        return self::$task ??= self::createTask();
+    }
+
+    /**
+     * 创建任务实例（注入默认兜底收集器，仅执行一次）
+     */
+    private static function createTask(): Task
+    {
+        $collecter = self::getCollecter();
+        $collecter->addCollecter(new FqcnCollecter());
+
+        return new Task($collecter, self::getTable(), self::getDbName());
+    }
+
+    /**
+     * 获取计划任务实例
+     *
+     * 计划表名由任务表名追加 PLAN_TABLE_NAME 后缀得到，
+     * 与 Task 一样由本管理器统一创建并传入表名与连接名。
+     *
+     * @return Plan\PlanTask
+     */
+    public static function getPlanTask(): Plan\PlanTask
+    {
+        return self::$planTask ??= new Plan\PlanTask(
+            self::getPlanTable(),
+            self::getDbName()
+        );
     }
 
     /**
