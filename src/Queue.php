@@ -29,34 +29,95 @@ final class Queue
             $dbal->setTransactionIsolation(Transaction::REPEATABLE_READ);
         }
 
-        $dbal->beginTransaction();
-
         try {
+            $dbal->beginTransaction();
+
             $row = $task->fetchRunByOffset($offset);
 
             if (false !== $row) {
-                $dbal->update(
+                // 条件抢占：仅当记录仍为「未执行(0)」时才置为「执行中(9)」。
+                // 多 worker 并发下，竞态失败方读到的行已被抢占者提交为 9，
+                // 此处受影响行数为 0，放弃本轮，保证同一任务只被执行一次。
+                $claimed = $dbal->update(
                     $task->table,
                     ['runtype' => 9, 'timerun' => $time],
-                    ['id' => $row['id']]
+                    ['id' => $row['id'], 'runtype' => 0]
                 );
+
+                if (1 !== (int) $claimed) {
+                    $row = false;
+                }
             }
 
             $dbal->commit();
         } catch (\Throwable $e) {
-            $dbal->rollBack();
+            if ($dbal->isTransactionActive()) {
+                $dbal->rollBack();
+            }
 
             return false;
-        }
-
-        if ($oldTransaction != Transaction::REPEATABLE_READ) {
-            $dbal->setTransactionIsolation($oldTransaction);
+        } finally {
+            // setTransactionIsolation 改的是会话级隔离，常驻 worker 复用共享连接，
+            // 必须保证所有路径（含异常 return）都还原，否则会污染后续所有查询。
+            if ($oldTransaction != Transaction::REPEATABLE_READ) {
+                $dbal->setTransactionIsolation($oldTransaction);
+            }
         }
 
         if (false === $row) {
             return false;
         }
 
+        $row['doid'] = (int) $row['doid'];
+        $row['params'] = json_decode($row['params'], true);
+        $queue = new self($task, $row);
+
+        $t1 = microtime(true);
+
+        try {
+            $action = $task->collecter->get($queue->getName());
+
+            if (null === $action) {
+                $return = Result::err(
+                    \sprintf('TASK action \'%s\' not exist', $queue->getName())
+                );
+            } else {
+                $return = \call_user_func_array($action, [$queue]);
+
+                if (!$return instanceof Result) {
+                    $return = Result::err(
+                        \sprintf('TASK return is %s, must Result, ', \gettype($return))
+                    );
+                }
+            }
+        } catch (\Throwable $th) {
+            $return = Result::throwableTrace($th);
+        }
+
+        $jg = (int) ((microtime(true) - $t1) * 1000);
+
+        $queue->setResult(
+            $return->isOk(),
+            (string) $return->unwrapAny(),
+            max(0, $jg)
+        );
+
+        return $queue;
+    }
+
+    /**
+     * 执行一条「已抢占」的任务记录并写回结果（批量执行器入口）
+     *
+     * 供 BatchQueue 批量认领（runtype 已置为执行中(9)）后逐条调用，
+     * 逻辑等价于 run() 完成抢占之后的执行段；本方法不认领任务，
+     * 纯追加入口，不改变 run() 的任何现有行为。
+     *
+     * @param Task $task 任务管理器实例
+     * @param array<string,mixed> $row 已抢占的任务记录
+     * @return self 已执行的任务实例
+     */
+    public static function executeClaimed(Task $task, array $row): self
+    {
         $row['doid'] = (int) $row['doid'];
         $row['params'] = json_decode($row['params'], true);
         $queue = new self($task, $row);

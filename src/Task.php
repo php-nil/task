@@ -315,18 +315,20 @@ final class Task
      * @param string $where WHERE 条件
      * @param array $params 参数绑定
      * @param string $func 查询方法名
+     * @param string $fromSuffix 拼在表名后的 FROM 子句后缀（如 SQL Server 表锁提示）
+     * @param string $querySuffix 拼在整条语句末尾的后缀（如 FOR UPDATE）
      * @return mixed 查询结果
      */
-    private function fetchHandel(string $field, string $where, array $params, string $func): mixed
+    private function fetchHandel(string $field, string $where, array $params, string $func, string $fromSuffix = '', string $querySuffix = ''): mixed
     {
-        $sql = 'SELECT ' . $field . ' FROM ' . $this->table;
+        $sql = 'SELECT ' . $field . ' FROM ' . $this->table . $fromSuffix;
 
         if (!empty($where)) {
             $sql .= ' WHERE ' . $where;
         }
 
         $sql = $this->database->getDatabasePlatform()
-            ->modifyLimitQuery($sql, 1);
+            ->modifyLimitQuery($sql, 1) . $querySuffix;
 
         $isT = $this->database->isTransactionActive();
 
@@ -398,17 +400,38 @@ final class Task
     }
 
     /**
-     * 获取一条待执行的任务记录
+     * 获取一条待执行的任务记录（多 worker 原子抢占）
+     *
+     * 必须在事务内调用，按平台加行级锁：
+     * - MySQL/MariaDB、PostgreSQL：SELECT ... FOR UPDATE（当前读）。
+     *   并发 worker 在候选行上阻塞等待，抢占者提交后该行 runtype 已为 9，
+     *   WHERE 复查不匹配，自动顺延锁定下一条待执行记录，不会空手而回；
+     * - SQL Server：WITH (UPDLOCK, ROWLOCK, READPAST)，直接跳过被锁定的行；
+     * - SQLite 等无行锁平台：退化为普通读，由 Queue::run() 中带
+     *   runtype = 0 条件的 UPDATE 及受影响行数校验兜底防重。
      *
      * @param int $offset 时间偏移（秒）
      * @return mixed 任务记录或 false
      */
     public function fetchRunByOffset(int $offset): mixed
     {
-        return $this->fetch(
+        $platform = $this->database->getDatabasePlatform();
+        $fromSuffix = '';
+        $querySuffix = '';
+
+        if ($platform instanceof SQLServerPlatform) {
+            $fromSuffix = ' WITH (UPDLOCK, ROWLOCK, READPAST)';
+        } elseif ($platform instanceof AbstractMySQLPlatform || $platform instanceof PostgreSQLPlatform) {
+            $querySuffix = ' FOR UPDATE';
+        }
+
+        return $this->fetchHandel(
             '*',
             'timetorun <= ? AND runtype = ? ORDER BY timetorun ASC',
-            [date('Y-m-d H:i:s', time() + $offset), 0]
+            [date('Y-m-d H:i:s', time() + $offset), 0],
+            'fetchAssociative',
+            $fromSuffix,
+            $querySuffix
         );
     }
 
@@ -424,7 +447,7 @@ final class Task
         $param = [];
 
         if (null !== $time) {
-            $where .= 'AND timetorun < ?';
+            $where .= ' AND timetorun < ?';
             $param[] = date('Y-m-d H:i:s', time() + $time);
         }
 
@@ -445,7 +468,7 @@ final class Task
         $param = [$name, $doId];
 
         if (null !== $timetorun) {
-            $where .= 'AND timetorun < ?';
+            $where .= ' AND timetorun < ?';
             $param[] = date('Y-m-d H:i:s', time() + $timetorun);
         }
 

@@ -64,6 +64,13 @@ class TaskCommand extends Command
             InputOption::VALUE_NONE,
             '空闲就跳出'
         );
+
+        $this->addOption(
+            'batch',
+            'B',
+            InputOption::VALUE_REQUIRED,
+            '批量认领执行的任务数量(如 --batch=20);不指定则单条逐条执行'
+        );
     }
 
     /**
@@ -87,6 +94,11 @@ class TaskCommand extends Command
         $offset = (int) $input->getOption('offset');
         $idleExit = $input->getOption('idle-exit');
 
+        // 指定 --batch=N 时走批量认领，null 保持原有单条认领链路
+        $batch = null !== $input->getOption('batch')
+            ? max(1, (int) $input->getOption('batch'))
+            : null;
+
         $numRun = 0;
         $numIdle = 0;
 
@@ -94,11 +106,23 @@ class TaskCommand extends Command
         $end = $now + $duration;
 
         do {
-            if ($queue = $this->task->run($offset)) {
-                $output->writeln('运行' . $queue->getResult());
-                $numRun++;
+            if (null !== $batch) {
+                $batchRun = BatchQueue::run($this->task, $batch, $offset);
+                $queues = false === $batchRun ? [] : $batchRun->getQueues();
+            } else {
+                $queues = ($queue = $this->task->run($offset)) ? [$queue] : [];
+            }
+
+            if (!empty($queues)) {
+                $intervalms = 0;
+
+                foreach ($queues as $queue) {
+                    $output->writeln('运行' . $queue->getResult());
+                    $intervalms = max($intervalms, $queue->getIntervalms());
+                }
+
+                $numRun += count($queues);
                 $numIdle = 0;
-                $intervalms = $queue->getIntervalms();
             } else {
                 $numIdle++;
                 $intervalms = 0;
