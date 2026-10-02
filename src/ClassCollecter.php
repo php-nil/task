@@ -41,6 +41,8 @@ class ClassCollecter extends Collecter
         $class = "{$this->namespace}\\";
         if (0 !== $this->len) {
             $class .= substr($name, $this->len);
+        }else{
+            $class .= $name;
         }
 
         if (!class_exists($class)) {
