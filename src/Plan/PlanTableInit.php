@@ -44,10 +44,17 @@ final class PlanTableInit
         $database = $plan->getDatabase();
         $queries = $schema->toSql($database->getDatabasePlatform());
 
+        // schema 是跨组件共享的全局对象，默认配置（无限定表名）下 DBAL 本就不会
+        // 产出 CREATE SCHEMA；显式使用限定名（schema.table）时其应由部署方预置，
+        // 缺失则后续 CREATE TABLE 会立刻抛出语义明确的错误，因此这里直接剔除，
+        // 不由组件隐式创建。
+        $queries = array_values(array_filter(
+            $queries,
+            static fn (string $q): bool => !str_starts_with($q, 'CREATE SCHEMA ')
+        ));
+
         foreach ($queries as $i => $q) {
-            if (str_starts_with($q, 'CREATE SCHEMA ')) {
-                $queries[$i] = 'CREATE SCHEMA IF NOT EXISTS ' . substr($q, 14);
-            } elseif (str_starts_with($q, 'CREATE TABLE ')) {
+            if (str_starts_with($q, 'CREATE TABLE ')) {
                 // 多 worker 冷启动可能并发首访建表，使用 IF NOT EXISTS 避免直接冲突
                 $queries[$i] = 'CREATE TABLE IF NOT EXISTS ' . substr($q, 13);
             }

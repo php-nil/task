@@ -88,6 +88,9 @@ $task->addIfNotRunning('MyTask', 0, 0, ['param1' => 'value']);
 ```
 
 > 任务表在首次访问（添加 / 查询 / 执行）时由 `TableInit` 自动创建，无需手动建表。
+> 建表使用 `CREATE TABLE IF NOT EXISTS` 并对并发建索引冲突做了容错，多个 worker 冷启动可安全竞争。
+> 组件只负责创建自身的表，不会隐式创建 schema / database：若通过限定名（如 PostgreSQL 的 `schema.table`）
+> 指定表名，schema 必须由部署方预先创建；缺失时建表会直接抛出明确的错误。
 
 ### 4. 注册并执行命令
 
@@ -228,7 +231,7 @@ if (false !== $batch) {
 ### 1. 基本说明
 
 - 队列按任务类完整类名（FQCN）执行的能力由默认兜底收集器 `FqcnCollecter` 提供：`TaskManager::getTask()` 首次实例化 Task 时自动把它注入收集器链末尾，短任务名优先解析、均未命中才按 FQCN 兜底，调用方无需任何显式装配；
-- 计划表在首次访问时自动创建。表名为「任务表名 + `_plan`」（`TaskManager::PLAN_TABLE_NAME`），例如任务表为 `task` 时计划表为 `task_plan`；
+- 计划表在首次访问时自动创建（同样不会隐式创建 schema，限定名场景的 schema 预置要求与任务表一致）。表名为「任务表名 + `_plan`」（`TaskManager::PLAN_TABLE_NAME`），例如任务表为 `task` 时计划表为 `task_plan`；
 - 每日自动扫描默认不开启，需要时显式安装一次扫描任务（见第 4 节）。
 
 ### 2. 周期（cycle）说明
