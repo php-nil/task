@@ -180,9 +180,13 @@ final class Task
                     $this->buildAddData($name, $doid, $timetorun, $params, $content)
                 );
 
+                // 自增 ID 必须在提交前读取：MySQL 的 mysql_insert_id() 只反映最后一条
+                // 语句，COMMIT 的 OK 包会把它重置为 0（DBAL 随之抛 NoIdentityValue）
+                $insertId = (1 === $affected) ? (int) $this->database->lastInsertId() : false;
+
                 $this->database->commit();
 
-                return (1 === $affected) ? (int) $this->database->lastInsertId() : false;
+                return $insertId;
             } catch (UniqueConstraintViolationException) {
                 // 并发下被其他请求抢先插入（仅在存在额外唯一索引时触发）
                 $this->rollbackTransaction();

@@ -50,12 +50,27 @@ final class TableInit
         $database = $task->getDatabase();
         $queries = $schema->toSql($database->getDatabasePlatform());
 
-        if (str_starts_with($queries[0], 'CREATE SCHEMA ')) {
-            $queries[0] = 'CREATE SCHEMA IF NOT EXISTS ' . substr($queries[0], 14);
+        foreach ($queries as $i => $q) {
+            if (str_starts_with($q, 'CREATE SCHEMA ')) {
+                $queries[$i] = 'CREATE SCHEMA IF NOT EXISTS ' . substr($q, 14);
+            } elseif (str_starts_with($q, 'CREATE TABLE ')) {
+                // 多 worker 冷启动可能并发首访建表，使用 IF NOT EXISTS 避免直接冲突
+                $queries[$i] = 'CREATE TABLE IF NOT EXISTS ' . substr($q, 13);
+            }
         }
 
         foreach ($queries as $q) {
-            $database->executeStatement($q);
+            try {
+                $database->executeStatement($q);
+            } catch (\Throwable $e) {
+                // 并发初始化：CREATE TABLE IF NOT EXISTS 已通过，仅 CREATE INDEX
+                // 可能与另一进程撞名。只要表已存在即说明有进程正在/已经完成初始化，
+                // 忽略冲突并继续执行剩余 DDL——各进程合起来保证每条 DDL 至少一方成功，
+                // 不会留下「表在但索引缺失」的半成品
+                if (!$database->createSchemaManager()->tablesExist([$task->table])) {
+                    throw $e;
+                }
+            }
         }
     }
 }
