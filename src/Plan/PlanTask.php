@@ -5,7 +5,6 @@ namespace NilTask\Plan;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\TableNotFoundException;
 use Nil\Kernel\Kernel;
-use NilTask\TaskClassInterface;
 
 /**
  * 计划任务管理服务
@@ -41,7 +40,7 @@ final class PlanTask
      * 新增计划任务
      *
      * @param string $name 计划名称（同名校验唯一）
-     * @param string $taskClass 调用的任务类（须实现 TaskClassInterface）
+     * @param string $taskClass 任务名（由 Collecter 链解析，可为短名/FQCN/自定义标识）
      * @param string $runtime 任务执行时间，如 10:23
      * @param bool $enabled 是否启用
      * @param array<string,mixed> $cycle 周期，如 {"week":1,"day":2,"month":3}，空数组表示每天
@@ -49,7 +48,6 @@ final class PlanTask
      */
     public function add(string $name, string $taskClass, string $runtime, bool $enabled = true, array $cycle = []): int|false
     {
-        self::assertTaskClass($taskClass);
         $runtime = self::normalizeRuntime($runtime);
         $cycle = Cycle::fromArray($cycle);
 
@@ -85,7 +83,6 @@ final class PlanTask
         }
 
         if (array_key_exists('taskclass', $data)) {
-            self::assertTaskClass((string) $data['taskclass']);
             $save['taskclass'] = (string) $data['taskclass'];
         }
 
@@ -258,22 +255,6 @@ final class PlanTask
         $row['cycle'] = is_array($cycle) ? $cycle : [];
 
         return $row;
-    }
-
-    /**
-     * 校验任务类：必须存在且实现 TaskClassInterface
-     *
-     * @throws \InvalidArgumentException
-     */
-    public static function assertTaskClass(string $taskClass): void
-    {
-        if (!class_exists($taskClass) || !is_subclass_of($taskClass, TaskClassInterface::class)) {
-            throw new \InvalidArgumentException(\sprintf(
-                'plan task class "%s" not exists or not implements %s',
-                $taskClass,
-                TaskClassInterface::class
-            ));
-        }
     }
 
     /**

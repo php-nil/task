@@ -260,7 +260,7 @@ use NilTask\TaskManager;
 
 $plan = TaskManager::getPlanTask();
 
-// 新增：名称（同名校验唯一）、任务类(须存在且实现 TaskClassInterface)、
+// 新增：名称（同名校验唯一）、任务名（由 Collecter 链解析，可为短名/FQCN/自定义标识）、
 // 执行时间(HH:MM, 00:00-23:59)、是否启用、周期（空数组表示每天）
 $plan->add('每日报表', App\Task\DailyReport::class, '10:23', true, ['week' => [1, 3, 5]]);
 
@@ -323,7 +323,7 @@ NilTask\Plan\PlanScanTask::ensureScheduled();
 |------|------|------|
 | id | bigint unsigned | 主键，自增 |
 | name | string(85) | 计划名称（**唯一索引**） |
-| taskclass | string(190) | 调用的任务类（须存在且实现 TaskClassInterface） |
+| taskclass | string(190) | 任务名（Collecter 链可解析，可为短名/FQCN/自定义标识） |
 | runtime | string(5) | 任务执行时间，如 `10:23`（HH:MM） |
 | enabled | smallint unsigned | 是否启用（1是 / 0否，默认 1） |
 | cycle | json | 周期，如 `{"week":1,"day":2,"month":3,"month_end":1,"day_offset":[3,1]}`，空表示每天 |
